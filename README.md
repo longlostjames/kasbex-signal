@@ -1,6 +1,6 @@
 # KASBEX Signal Processing
 
-This repository contains the signal processing and radar control scripts for the KASBEX (KArlsruhe Scanning Bistatic EXperiment) campaign.
+This repository contains the signal processing and radar control scripts for the KASBEX campaign.
 
 ## Overview
 
@@ -17,17 +17,6 @@ The KASBEX project involves radar scanning operations with automated storm track
 
 - `kasbex_iop_signal.py` - Main Python control script for automated radar operations
 - `kepler_scan` - Perl script for executing different types of radar scans (PPI, RHI, FIX, etc.)
-
-### Shell Scripts
-
-- `woest_sequence*.sh` - Various operational sequences for different dates
-- `woest_sequence*.py` - Python versions of operational sequences
-
-### Legacy Files
-
-- `woest_sop*.py` - Standard Operating Procedures scripts
-- `woest_iop.py` - Intensive Observation Period script
-- `cobalt_iop_signal_h.py` - Related signal processing script
 
 ## Usage
 
