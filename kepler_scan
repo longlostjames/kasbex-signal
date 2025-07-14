@@ -1,0 +1,200 @@
+#!/usr/bin/perl -w
+
+# ------------------------------------------
+# Scanning script for KASBEX campaign
+# Author: Chris Walden, STFC/NCAS 
+# Last modified: 14-07-2025
+# ------------------------------------------
+ 
+use strict;
+use warnings;
+use Getopt::Long qw(GetOptions);
+Getopt::Long::Configure qw(gnu_getopt);
+
+local $ENV{PATH} = "/home/data/metek/m36s/bin:$ENV{PATH}";
+ 
+my $scantype = 'RHI';
+my $angle_min;
+my $angle_span;
+my $angle_fixed = 246;
+my $nave = 2;
+my $deg_per_sec = 2.0;
+my $dwelltime = 900;
+
+# North_angle setting as established from Feb 2024 during CCREST-M campaign
+my $north_angle = 55.7; 
+
+# Set default values based on scan type
+if ($scantype eq 'PPI' || $scantype eq 'VAD') {
+    $angle_min = 200;
+    $angle_span = 115;
+} elsif ($scantype eq 'RHI') {
+    $angle_min = 0;
+    $angle_span = 90;
+    $angle_fixed = 246;
+} 
+
+if ($scantype eq 'VAD') {
+    $angle_fixed = 82;
+} elsif ($scantype eq 'PPI') {
+    $angle_fixed = 0;
+}
+
+GetOptions(
+    'scan=s' => \$scantype,
+    'min_angle=f' => \$angle_min,
+    'angle_span=f' => \$angle_span,
+    'fixed_angle=f' => \$angle_fixed,
+    'nave=i' => \$nave,
+    'deg_per_sec=f' => \$deg_per_sec,
+    'dwelltime=f' => \$dwelltime
+) or die "Usage: $0 --scan <type> --min_angle <min> --angle_span <span> --deg_per_sec <v> --fixed_angle <angle> --nave <n>\n";
+
+# Apply north angle correction
+if ($scantype eq 'RHI') {
+    $angle_fixed = $angle_fixed - $north_angle;
+} elsif ($scantype eq 'PPI' || $scantype eq 'VAD') {
+    $angle_min = $angle_min - $north_angle;
+}
+
+print("Scan type: $scantype\n");
+print("Min angle: $angle_min\n");
+print("Angle span: $angle_span\n");
+print("Fixed angle: $angle_fixed\n");
+print("Spectra averaged: $nave\n");
+print("Degrees per second: $deg_per_sec\n");
+
+use lib ("/home/data/metek/m36s/lib");
+use ttaerotech;
+
+# Connect to the radar server
+my $connect_r = connectaerotech(1);
+unless ($connect_r == 1) {
+    print "Return code of connectaerotech was $connect_r\n";
+    die "Connection failed\n";
+}
+
+# Set wait mode based on scan type
+if ($scantype ne "FIX_noslew") {
+    aerotechcmd("WAIT MODE INPOS");
+} else {
+    aerotechcmd("WAIT MODE NOWAIT");
+}
+
+# Execute scan based on type
+if ($scantype eq "PPI") {
+    execute_ppi_scan();
+} elsif ($scantype eq "RHI") {
+    execute_rhi_scan();
+} elsif ($scantype eq "FIX") {
+    execute_fix_scan();
+} elsif ($scantype eq "FIX_noslew") {
+    execute_fix_noslew_scan();
+} elsif ($scantype eq "SLEWVERT") {
+    execute_slewvert_scan();
+} else {
+    die "Unknown scan type: $scantype\n";
+}
+
+# Subroutines for each scan type
+sub execute_ppi_scan {
+    my $slew2el = "moveabs y $angle_fixed yf 12";
+    print("$slew2el\n");
+    aerotechcmd($slew2el);
+    aerotechcmd("wait MOVEDONE y");
+    
+    my $slew2az = "moveabs x $angle_min xf 12";
+    print("$slew2az\n");
+    aerotechcmd($slew2az);
+    aerotechcmd("wait MOVEDONE x");
+    
+    $slew2az = "moveabs x $angle_min xf $deg_per_sec";
+    print("$slew2az\n");
+    aerotechcmd($slew2az);
+    aerotechcmd("wait MOVEDONE x");
+    
+    sleep(1.0);
+    system("get_datasavingNprocessing nave=$nave .ppi");
+    sleep(1.0);
+    
+    my $slew4ppi = "moveinc x $angle_span xf $deg_per_sec";
+    print("$slew4ppi\n");
+    aerotechcmd($slew4ppi);
+    aerotechcmd("wait MOVEDONE x");
+    
+    sleep(3.0);
+    system("kill_datasaving");
+}
+
+sub execute_rhi_scan {
+    system("kill_datasaving");
+    
+    my $slew2az = "moveabs x $angle_fixed xf 12";
+    print("$slew2az\n");
+    aerotechcmd($slew2az);
+    aerotechcmd("wait MOVEDONE x");
+    
+    my $slew2el = "moveabs y $angle_min yf 12";
+    print("$slew2el\n");
+    aerotechcmd($slew2el);
+    aerotechcmd("wait MOVEDONE y");
+    
+    $slew2el = "moveabs y $angle_min yf $deg_per_sec";
+    print("$slew2el\n");
+    aerotechcmd($slew2el);
+    aerotechcmd("wait MOVEDONE y");
+    
+    sleep(1.0);
+    system("get_datasavingNprocessing nave=$nave .rhi1");
+    sleep(1.0);
+    
+    my $slew4rhi = "moveinc y $angle_span yf $deg_per_sec";
+    print("$slew4rhi\n");
+    aerotechcmd($slew4rhi);
+    aerotechcmd("wait MOVEDONE y");
+    
+    sleep(3.0);
+    system("kill_datasaving");
+}
+
+sub execute_fix_scan {
+    my $slew2az = "moveabs x $angle_fixed xf 12";
+    print("$slew2az\n");
+    aerotechcmd($slew2az);
+    aerotechcmd("wait MOVEDONE x");
+    
+    my $slew2vert = "moveabs y 90 yf 12";
+    print("$slew2vert\n");
+    aerotechcmd($slew2vert);
+    aerotechcmd("wait MOVEDONE y");
+    
+    system("get_datasavingNprocessing nave=$nave .vert");
+    sleep(1.0);
+    sleep($dwelltime);
+    sleep(3.0);
+    system("kill_datasaving");
+}
+
+sub execute_fix_noslew_scan {
+    system("get_datasavingNprocessing nave=$nave .vert");
+    sleep(1.0);
+    sleep($dwelltime);
+    sleep(3.0);
+    system("kill_datasaving");
+}
+
+sub execute_slewvert_scan {
+    system("kill_datasaving");
+    
+    my $slew2az = "moveabs x $angle_fixed xf 12";
+    print("$slew2az\n");
+    aerotechcmd($slew2az);
+    aerotechcmd("wait MOVEDONE x");
+    
+    my $slew2vert = "moveabs y 90 yf 12";
+    print("$slew2vert\n");
+    aerotechcmd($slew2vert);
+    aerotechcmd("wait MOVEDONE y");
+    
+    sleep(1.0);
+}
