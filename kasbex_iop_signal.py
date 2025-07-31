@@ -30,7 +30,7 @@ previous_cmd_files = set()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
@@ -227,13 +227,22 @@ def main():
             kepler_cmd = "stop"
             if cmd_file:
                 cmd_dict = read_cmd_file(cmd_file)
-                target_az = float(cmd_dict.get("azimuth", 0))
-                target_range = float(cmd_dict.get("range", 0))
-                kepler_cmd = cmd_dict.get("command", "stop") if target_range <= max_range else "stop"
+                kepler_cmd = cmd_dict.get("command", "stop")
+                if kepler_cmd == "scan":
+                    target_az = float(cmd_dict.get("azimuth", 0))
+                    target_range = float(cmd_dict.get("range", 0))
+                    if target_range > max_range:
+                        kepler_cmd = "stop"
+                elif kepler_cmd in ["rhi", "ppi"]:
+                    start_angle = float(cmd_dict.get("start_angle", 0))
+                    angle_span = float(cmd_dict.get("angle_span", 0))
+                    fixed_angle = float(cmd_dict.get("fixed_angle", 0))
+                    deg_per_sec = float(cmd_dict.get("deg_per_sec", 0))
+                    nave = float(cmd_dict.get("nave", 0))
 
             logging.info(f"Command: {kepler_cmd}")
 
-            if kepler_cmd == "scan":
+            if kepler_cmd in ["scan", "rhi", "ppi"]:
                 if running_default_process and running_fix:
                     logging.info("Interrupting default process...")
                     os.system('/home/data/metek/m36s/bin/kill_datasaving')
@@ -243,7 +252,12 @@ def main():
                 if not running_default_process:
                     if default_thread is None or not default_thread.is_alive():
                         #os.system('/home/data/metek/m36s/bin/kill_datasaving')
-                        run_storm_rhis(target_az, target_range, scan_rate)
+                        if kepler_cmd == "scan":
+                            run_storm_rhis(target_az, target_range, scan_rate)
+                        elif kepler_cmd == "rhi":
+                            run_scan_rhi(start_angle, angle_span, fixed_angle, deg_per_sec, nave)
+                        elif kepler_cmd == "ppi":
+                            run_scan_ppi(start_angle, angle_span, fixed_angle, deg_per_sec, nave)
                         restart_default_process()
 
             elif kepler_cmd == "stop":
