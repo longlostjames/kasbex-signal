@@ -238,7 +238,7 @@ def main():
                     angle_span = float(cmd_dict.get("angle_span", 0))
                     fixed_angle = float(cmd_dict.get("fixed_angle", 0))
                     deg_per_sec = float(cmd_dict.get("deg_per_sec", 0))
-                    nave = float(cmd_dict.get("nave", 0))
+                    nave = int(cmd_dict.get("nave", 0))
 
             logging.info(f"Command: {kepler_cmd}")
 
