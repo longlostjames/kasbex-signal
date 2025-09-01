@@ -1,14 +1,22 @@
 #!/usr/bin/env python
 """Write a command for kasbex_iop_signal.py to ingest.
 
-Written to /path/to/dir/kepler-20250731-124815.log
+Written to /path/to/dir/kepler-YYYYMMDD-HHMMSS.log
 
 Usage:
 python kasbex_kepler_command.py <dir> command:<cmd> <k1>:<v1> ...
 cmd: scan, rhi, ppi
+
+Examples:
 python kasbex_kepler_command.py /path/to/dir/ command:scan azimuth:22 range:44
 python kasbex_kepler_command.py /path/to/dir/ command:rhi start_angle:20 angle_span:10 fixed_angle:2 deg_per_sec:0.5 nave:2
-python kasbex_kepler_command.py /path/to/dir/ command:pph start_angle:20 angle_span:10 fixed_angle:2 deg_per_sec:0.5 nave:2
+python kasbex_kepler_command.py /path/to/dir/ command:ppi start_angle:20 angle_span:10 fixed_angle:2 deg_per_sec:0.5 nave:2
+
+Optional:
+  delay:<seconds>   # Delay (float, in seconds) before issuing the command
+
+Example with delay:
+python kasbex_kepler_command.py /path/to/dir/ command:rhi start_angle:20 angle_span:10 fixed_angle:2 deg_per_sec:0.5 nave:2 delay:5
 """
 import sys
 import datetime as dt
@@ -34,6 +42,14 @@ def main():
     else:
         raise ValueError(f"Invalid kepler command: {kepler_cmd}")
 
+    # Optionally allow a 'delay' key (float, optional)
+    delay = cmd_dict.pop("delay", None)
+    if delay is not None:
+        try:
+            _ = float(delay)
+        except:
+            raise ValueError("delay must be a float (seconds)")
+
     for arg in args:
         try:
             _ = float(cmd_dict.pop(arg))
@@ -41,9 +57,10 @@ def main():
             raise ValueError(f"Arg not present or wrong format: {arg}")
     assert len(cmd_dict) == 0, f'Commands not expected {cmd_dict}'
 
+    # Reconstruct file_command, including delay if present
     file_command = ' '.join(pairs)
     print(f'{filename}: {file_command}')
-    filepath.write_text(file_command, newline='')
+    filepath.write_text(file_command)
 
 
 if __name__ == '__main__':

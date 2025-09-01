@@ -228,6 +228,7 @@ def main():
             if cmd_file:
                 cmd_dict = read_cmd_file(cmd_file)
                 kepler_cmd = cmd_dict.get("command", "stop")
+                delay_sec = float(cmd_dict.get("delay", 0)) if "delay" in cmd_dict else 0
                 if kepler_cmd == "scan":
                     target_az = float(cmd_dict.get("azimuth", 0))
                     target_range = float(cmd_dict.get("range", 0))
@@ -251,7 +252,9 @@ def main():
 
                 if not running_default_process:
                     if default_thread is None or not default_thread.is_alive():
-                        #os.system('/home/data/metek/m36s/bin/kill_datasaving')
+                        if delay_sec > 0:
+                            logging.info(f"Delaying command execution by {delay_sec} seconds as specified in command file.")
+                            time.sleep(delay_sec)
                         if kepler_cmd == "scan":
                             run_storm_rhis(target_az, target_range, scan_rate)
                         elif kepler_cmd == "rhi":
